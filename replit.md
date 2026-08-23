@@ -1,15 +1,15 @@
-# [Project name]
+# UPI Snack Vending Machine
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A shareable snack-vending website with UPI checkout, order status tracking, admin sales views, and an ESP32 dispense bridge.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api-server run dev` — run the customer website and API server
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Optional env: `UPI_ID`, `UPI_PAYEE_NAME`, `ADMIN_KEY`, and `ESP32_SHARED_SECRET`
 
 ## Stack
 
@@ -22,15 +22,21 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/api-server/public/index.html` — customer snack menu
+- `artifacts/api-server/public/status.html` — payment and dispense status
+- `artifacts/api-server/public/admin.html` — admin dashboard
+- `artifacts/api-server/src/app.ts` — web server, vending API, and ESP32 bridge
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- The customer pages use same-origin API calls so one published URL serves the entire flow.
+- Orders and stock are kept in memory for this demo; use a database before production use.
+- Direct UPI confirmation is intentionally manual and is not fraud-proof without a payment gateway.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Customers choose snacks, open a UPI deep link, confirm payment, and track dispensing.
+- Admins can view revenue, stock, product sales, and recent orders at `/admin`.
 
 ## User preferences
 

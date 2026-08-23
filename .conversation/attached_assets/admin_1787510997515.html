@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin Dashboard — Vending Machine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #16181c;
+    --panel: #212429;
+    --panel-raised: #262a30;
+    --line: #34383f;
+    --ink: #edeef0;
+    --ink-dim: #8b9099;
+    --hazard: #f5c328;
+    --led: #ff4433;
+    --ok: #35d07f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Space Grotesk', sans-serif;
+    padding: 24px 16px 60px;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; }
+
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--ink-dim); font-size: 13px; margin: 0 0 24px; }
+
+  .login-box {
+    max-width: 360px;
+    margin: 60px auto;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+  }
+  .login-box input {
+    width: 100%;
+    padding: 12px;
+    margin: 16px 0;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--panel-raised);
+    color: var(--ink);
+    font-family: 'Share Tech Mono', monospace;
+  }
+  .login-box button, .refresh-btn {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    background: var(--hazard);
+    color: #17181a;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .stat-card .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-dim);
+    margin-bottom: 6px;
+  }
+  .stat-card .value {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 24px;
+    color: var(--hazard);
+  }
+  .stat-card.revenue .value { color: var(--ok); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 24px;
+    font-size: 13px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  th {
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+  }
+  td.mono, .mono { font-family: 'Share Tech Mono', monospace; }
+  tr:last-child td { border-bottom: none; }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-family: 'Share Tech Mono', monospace;
+  }
+  .badge.dispensed { background: rgba(53,208,127,0.15); color: var(--ok); }
+  .badge.paid { background: rgba(245,195,40,0.15); color: var(--hazard); }
+  .badge.pending { background: rgba(139,144,153,0.15); color: var(--ink-dim); }
+
+  .section-title {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink-dim);
+    margin: 24px 0 10px;
+  }
+
+  .refresh-btn { max-width: 200px; margin-bottom: 20px; }
+  .error { color: var(--led); font-family: 'Share Tech Mono', monospace; font-size: 13px; }
+</style>
+</head>
+<body>
+
+  <div class="wrap">
+    <div id="loginView" class="login-box">
+      <h1>Admin Dashboard</h1>
+      <p class="sub">Enter your admin key to view sales</p>
+      <input type="password" id="keyInput" placeholder="Admin key" />
+      <button onclick="login()">View Dashboard</button>
+      <p class="error" id="loginError"></p>
+    </div>
+
+    <div id="dashboardView" style="display:none;">
+      <h1>Vending Machine — Sales Dashboard</h1>
+      <p class="sub" id="lastUpdated"></p>
+
+      <button class="refresh-btn" onclick="loadAll()">Refresh Now</button>
+
+      <div class="stat-grid" id="statGrid"></div>
+
+      <div class="section-title">Current Stock</div>
+      <table id="stockTable"><tbody></tbody></table>
+
+      <div class="section-title">Sales by Product</div>
+      <table id="productTable"><tbody></tbody></table>
+
+      <div class="section-title">Recent Orders</div>
+      <table id="ordersTable"><tbody></tbody></table>
+    </div>
+  </div>
+
+<script>
+  const API_BASE = "http://10.151.35.218:4000"; // update to your backend URL
+
+  let adminKey = "";
+
+  function login() {
+    adminKey = document.getElementById("keyInput").value.trim();
+    if (!adminKey) return;
+    loadAll();
+  }
+
+  async function loadAll() {
+    try {
+      const [summaryRes, ordersRes] = await Promise.all([
+        fetch(`${API_BASE}/api/admin/summary?key=${encodeURIComponent(adminKey)}`),
+        fetch(`${API_BASE}/api/admin/orders?key=${encodeURIComponent(adminKey)}`),
+      ]);
+
+      if (summaryRes.status === 401 || ordersRes.status === 401) {
+        document.getElementById("loginError").textContent = "Invalid admin key";
+        return;
+      }
+
+      const summary = await summaryRes.json();
+      const orders = await ordersRes.json();
+
+      document.getElementById("loginView").style.display = "none";
+      document.getElementById("dashboardView").style.display = "block";
+      document.getElementById("lastUpdated").textContent = "Last updated: " + new Date().toLocaleTimeString();
+
+      renderStats(summary);
+      renderStock(summary.currentStock);
+      renderProducts(summary.perProduct);
+      renderOrders(orders);
+    } catch (e) {
+      document.getElementById("loginError").textContent = "Could not reach the backend. Check API_BASE and that the server is running.";
+    }
+  }
+
+  function renderStats(summary) {
+    const grid = document.getElementById("statGrid");
+    grid.innerHTML = `
+      <div class="stat-card revenue">
+        <div class="label">Total Revenue</div>
+        <div class="value">₹${summary.totalRevenue}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Total Orders</div>
+        <div class="value">${summary.totalOrders}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Dispensed</div>
+        <div class="value">${summary.dispensedOrders}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Pending</div>
+        <div class="value">${summary.pendingOrders}</div>
+      </div>
+    `;
+  }
+
+  function renderStock(stock) {
+    const table = document.getElementById("stockTable");
+    table.innerHTML = `
+      <tr><th>Product</th><th>Stock Left</th></tr>
+      ${stock.map((s) => `<tr><td>${s.name}</td><td class="mono">${s.stock}</td></tr>`).join("")}
+    `;
+  }
+
+  function renderProducts(perProduct) {
+    const table = document.getElementById("productTable");
+    if (perProduct.length === 0) {
+      table.innerHTML = `<tr><td>No sales yet</td></tr>`;
+      return;
+    }
+    table.innerHTML = `
+      <tr><th>Product</th><th>Qty Sold</th><th>Revenue</th></tr>
+      ${perProduct.map((p) => `<tr><td>${p.name}</td><td class="mono">${p.qtySold}</td><td class="mono">₹${p.revenue}</td></tr>`).join("")}
+    `;
+  }
+
+  function renderOrders(orders) {
+    const table = document.getElementById("ordersTable");
+    if (orders.length === 0) {
+      table.innerHTML = `<tr><td>No orders yet</td></tr>`;
+      return;
+    }
+    table.innerHTML = `
+      <tr><th>Order</th><th>Items</th><th>Amount</th><th>Status</th><th>Time</th></tr>
+      ${orders.slice(0, 30).map((o) => `
+        <tr>
+          <td class="mono">${o.orderId.slice(0, 10)}...</td>
+          <td>${o.items.map((i) => `${i.qty}x ${i.name}`).join(", ")}</td>
+          <td class="mono">₹${o.amount}</td>
+          <td><span class="badge ${o.status}">${o.status}</span></td>
+          <td class="mono">${new Date(o.createdAt).toLocaleString()}</td>
+        </tr>
+      `).join("")}
+    `;
+  }
+
+  // Auto-refresh every 10 seconds once logged in
+  setInterval(() => {
+    if (adminKey) loadAll();
+  }, 10000);
+</script>
+
+</body>
+</html>
