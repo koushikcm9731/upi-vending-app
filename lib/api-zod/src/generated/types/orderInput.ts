@@ -5,7 +5,9 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { OrderLine } from './orderLine';
 
-export interface HealthStatus {
-  status: string;
+export interface OrderInput {
+  items: OrderLine[];
+  machineId?: string;
 }

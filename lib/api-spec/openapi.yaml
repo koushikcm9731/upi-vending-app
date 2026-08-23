@@ -10,6 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: vending
+    description: Customer vending operations
+  - name: admin
+    description: Admin reporting
 paths:
   /healthz:
     get:
@@ -24,6 +28,90 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /products:
+    get:
+      operationId: listProducts
+      tags: [vending]
+      summary: List available snacks and stock
+      responses:
+        "200":
+          description: Product catalog
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+  /create-order:
+    post:
+      operationId: createOrder
+      tags: [vending]
+      summary: Create a UPI order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderInput"
+      responses:
+        "200":
+          description: Created order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderCreated"
+  /confirm-payment:
+    post:
+      operationId: confirmPayment
+      tags: [vending]
+      summary: Confirm customer payment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentConfirmation"
+      responses:
+        "200":
+          description: Payment status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+  /order-status/{orderId}:
+    get:
+      operationId: getOrderStatus
+      tags: [vending]
+      summary: Get order status
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Order status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+  /admin/summary:
+    get:
+      operationId: getAdminSummary
+      tags: [admin]
+      summary: Get admin sales summary
+      parameters:
+        - name: key
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Sales summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSummary"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +121,64 @@ components:
           type: string
       required:
         - status
+    Product:
+      type: object
+      required: [id, name, price, stock]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        price: { type: number }
+        stock: { type: number, format: int32 }
+    OrderLine:
+      type: object
+      required: [productId, qty]
+      properties:
+        productId: { type: string }
+        qty: { type: number, format: int32, minimum: 1 }
+    OrderInput:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/OrderLine" }
+        machineId: { type: string }
+    OrderCreated:
+      type: object
+      required: [orderId, upiLink, amount]
+      properties:
+        orderId: { type: string }
+        upiLink: { type: string }
+        amount: { type: number }
+    PaymentConfirmation:
+      type: object
+      required: [orderId]
+      properties:
+        orderId: { type: string }
+    StatusResponse:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string }
+    AdminSummary:
+      type: object
+      required: [totalRevenue, totalOrders, pendingOrders, dispensedOrders, perProduct, currentStock]
+      properties:
+        totalRevenue: { type: number }
+        totalOrders: { type: number, format: int32 }
+        pendingOrders: { type: number, format: int32 }
+        dispensedOrders: { type: number, format: int32 }
+        perProduct:
+          type: array
+          items:
+            type: object
+            required: [name, qtySold, revenue]
+            properties:
+              name: { type: string }
+              qtySold: { type: number, format: int32 }
+              revenue: { type: number }
+        currentStock:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
 

@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "SIT Snack Vending Machine"
+description = "A publishable snack vending web app with a customer ordering flow, UPI payment status, stock-aware menu, and admin sales dashboard powered by the shared Express API."
+version = "1.0.0"
+id = "artifacts/snack-vending-app"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20784
+
+[services.development]
+run = "pnpm --filter @workspace/snack-vending-app run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/snack-vending-app", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/snack-vending-app/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20784"
+BASE_PATH = "/"
