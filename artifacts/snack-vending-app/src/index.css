@@ -42,34 +42,34 @@
 }
 
 :root {
-  --background: 45 36% 94%;
-  --foreground: 222 32% 18%;
-  --border: 40 18% 80%;
-  --input: 40 18% 80%;
-  --ring: 17 85% 51%;
-  --card: 45 42% 97%;
-  --card-foreground: 222 32% 18%;
-  --card-border: 40 18% 82%;
-  --popover: 45 42% 97%;
-  --popover-foreground: 222 32% 18%;
-  --popover-border: 40 18% 80%;
-  --primary: 17 85% 51%;
-  --primary-foreground: 45 42% 97%;
-  --secondary: 169 38% 34%;
-  --secondary-foreground: 45 42% 97%;
-  --muted: 43 26% 88%;
-  --muted-foreground: 220 13% 42%;
-  --accent: 48 94% 57%;
-  --accent-foreground: 222 32% 18%;
+  --background: 214 42% 96%;
+  --foreground: 222 47% 13%;
+  --border: 214 28% 81%;
+  --input: 214 28% 81%;
+  --ring: 211 100% 50%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 13%;
+  --card-border: 214 28% 84%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 13%;
+  --popover-border: 214 28% 81%;
+  --primary: 211 100% 50%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 190 91% 38%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 214 32% 91%;
+  --muted-foreground: 215 20% 39%;
+  --accent: 195 100% 87%;
+  --accent-foreground: 222 47% 13%;
   --destructive: 3 68% 46%;
-  --destructive-foreground: 45 42% 97%;
-  --sidebar: 222 32% 18%;
-  --sidebar-foreground: 45 36% 94%;
-  --sidebar-border: 222 25% 27%;
-  --sidebar-primary: 17 85% 51%;
-  --sidebar-primary-foreground: 45 42% 97%;
-  --sidebar-accent: 222 25% 27%;
-  --sidebar-accent-foreground: 45 36% 94%;
+  --destructive-foreground: 0 0% 100%;
+  --sidebar: 222 47% 13%;
+  --sidebar-foreground: 214 42% 96%;
+  --sidebar-border: 222 35% 23%;
+  --sidebar-primary: 211 100% 50%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 222 35% 23%;
+  --sidebar-accent-foreground: 214 42% 96%;
   --app-font-sans: 'Bricolage Grotesque', ui-sans-serif, sans-serif;
   --app-font-mono: 'Space Mono', ui-monospace, monospace;
   --radius: 0.85rem;
@@ -77,34 +77,34 @@
 }
 
 .dark {
-  --background: 222 32% 18%;
-  --foreground: 45 36% 94%;
-  --border: 222 25% 30%;
-  --input: 222 25% 30%;
-  --ring: 17 85% 51%;
-  --card: 222 28% 22%;
-  --card-foreground: 45 36% 94%;
-  --card-border: 222 25% 30%;
-  --popover: 222 28% 22%;
-  --popover-foreground: 45 36% 94%;
-  --popover-border: 222 25% 30%;
-  --primary: 17 85% 51%;
-  --primary-foreground: 45 42% 97%;
-  --secondary: 169 38% 44%;
-  --secondary-foreground: 45 42% 97%;
-  --muted: 222 25% 27%;
-  --muted-foreground: 43 18% 69%;
-  --accent: 48 94% 57%;
-  --accent-foreground: 222 32% 18%;
+  --background: 222 47% 13%;
+  --foreground: 214 42% 96%;
+  --border: 222 35% 28%;
+  --input: 222 35% 28%;
+  --ring: 211 100% 62%;
+  --card: 222 40% 17%;
+  --card-foreground: 214 42% 96%;
+  --card-border: 222 35% 28%;
+  --popover: 222 40% 17%;
+  --popover-foreground: 214 42% 96%;
+  --popover-border: 222 35% 28%;
+  --primary: 211 100% 62%;
+  --primary-foreground: 222 47% 13%;
+  --secondary: 190 91% 54%;
+  --secondary-foreground: 222 47% 13%;
+  --muted: 222 35% 23%;
+  --muted-foreground: 214 22% 73%;
+  --accent: 195 100% 76%;
+  --accent-foreground: 222 47% 13%;
   --destructive: 3 68% 58%;
-  --destructive-foreground: 45 42% 97%;
-  --sidebar: 222 36% 13%;
-  --sidebar-foreground: 45 36% 94%;
-  --sidebar-border: 222 25% 24%;
-  --sidebar-primary: 17 85% 51%;
-  --sidebar-primary-foreground: 45 42% 97%;
-  --sidebar-accent: 222 25% 24%;
-  --sidebar-accent-foreground: 45 36% 94%;
+  --destructive-foreground: 0 0% 100%;
+  --sidebar: 222 53% 9%;
+  --sidebar-foreground: 214 42% 96%;
+  --sidebar-border: 222 35% 21%;
+  --sidebar-primary: 211 100% 62%;
+  --sidebar-primary-foreground: 222 47% 13%;
+  --sidebar-accent: 222 35% 21%;
+  --sidebar-accent-foreground: 214 42% 96%;
 }
 
 @layer base {
@@ -132,8 +132,8 @@
 .app-shell {
   min-height: 100dvh;
   background:
-    radial-gradient(circle at 10% 0%, hsl(48 94% 57% / .18), transparent 24rem),
-    radial-gradient(circle at 94% 14%, hsl(169 38% 34% / .12), transparent 23rem),
+    radial-gradient(circle at 10% 0%, hsl(211 100% 50% / .18), transparent 24rem),
+    radial-gradient(circle at 94% 14%, hsl(190 91% 38% / .12), transparent 23rem),
     hsl(var(--background));
 }
 .noise::after {
@@ -146,7 +146,7 @@
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.65'/%3E%3C/svg%3E");
 }
 .machine-grid {
-  background-image: linear-gradient(hsl(222 32% 18% / .06) 1px, transparent 1px), linear-gradient(90deg, hsl(222 32% 18% / .06) 1px, transparent 1px);
+  background-image: linear-gradient(hsl(211 100% 50% / .08) 1px, transparent 1px), linear-gradient(90deg, hsl(211 100% 50% / .08) 1px, transparent 1px);
   background-size: 22px 22px;
 }
 .rise-in { animation: rise-in .5s cubic-bezier(.2,.75,.25,1) both; }

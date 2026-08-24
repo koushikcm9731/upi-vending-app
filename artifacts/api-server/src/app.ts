@@ -9,12 +9,10 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 const products = [
-  { id: "lays-magic-masala", name: "Lay's Magic Masala", price: 20, slot: 1, stock: 12 },
-  { id: "kurkure-masala", name: "Kurkure Masala Munch", price: 20, slot: 2, stock: 10 },
-  { id: "bingo-mad-angles", name: "Bingo! Mad Angles", price: 20, slot: 3, stock: 8 },
-  { id: " parle-g", name: "Parle-G", price: 10, slot: 4, stock: 15 },
-  { id: "coke", name: "Coca-Cola", price: 40, slot: 5, stock: 8 },
-  { id: "water", name: "Water", price: 20, slot: 6, stock: 20 },
+  { id: "lays-classic", name: "Lays Classic", price: 20, slot: 1, stock: 12 },
+  { id: "kurkure-masala", name: "Kurkure Masala", price: 20, slot: 2, stock: 10 },
+  { id: "oreo-biscuit", name: "Oreo Biscuit", price: 30, slot: 3, stock: 8 },
+  { id: "coca-cola-250ml", name: "Coca-Cola 250ml", price: 40, slot: 4, stock: 8 },
 ];
 const orders: Record<string, any> = {};
 const pendingDispense: Record<string, any[]> = {};

@@ -133,10 +133,10 @@ function Shell({ children, cartCount, onCart }: { children: React.ReactNode; car
 
 function ProductArt({ index, compact = false }: { index: number; compact?: boolean }) {
   const styles = [
-    'bg-[hsl(169_38%_34%)] text-[hsl(48_94%_57%)]',
-    'bg-[hsl(17_85%_51%)] text-[hsl(45_42%_97%)]',
-    'bg-[hsl(222_32%_18%)] text-[hsl(48_94%_57%)]',
-    'bg-[hsl(48_94%_57%)] text-[hsl(222_32%_18%)]',
+    'bg-[hsl(211_100%_50%)] text-white',
+    'bg-[hsl(222_47%_13%)] text-[hsl(195_100%_87%)]',
+    'bg-[hsl(190_91%_38%)] text-white',
+    'bg-[hsl(195_100%_87%)] text-[hsl(222_47%_13%)]',
   ];
   return (
     <div className={`machine-grid relative flex items-center justify-center overflow-hidden rounded-2xl ${compact ? 'h-16 w-16 shrink-0 rounded-xl' : 'h-44'} ${styles[index % styles.length]}`}>
