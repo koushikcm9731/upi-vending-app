@@ -45,6 +45,13 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// The artifact deployment healthcheck probes the service base path (/api).
+// Keep this lightweight endpoint alongside /api/healthz so both deployment
+// and explicit health checks receive a successful response.
+app.get("/api", (_req, res) => {
+  res.json({ status: "ok" });
+});
+
 app.get("/api/products", (_req, res) => {
   res.json(products.map(({ id, name, price, stock }) => ({ id, name, price, stock })));
 });
