@@ -16,9 +16,9 @@ const products = [
 ];
 const orders: Record<string, any> = {};
 const pendingDispense: Record<string, any[]> = {};
-const upiId = process.env["UPI_ID"] || "demo-vending@upi";
-const payeeName = process.env["UPI_PAYEE_NAME"] || "SIT Vending Machine";
-const adminKey = process.env["ADMIN_KEY"] || "demo-admin-key";
+const upiId = process.env["UPI_ID"]?.trim();
+const payeeName = process.env["UPI_PAYEE_NAME"]?.trim();
+const adminKey = process.env["ADMIN_KEY"]?.trim();
 const espSecret = process.env["ESP32_SHARED_SECRET"] || "demo-esp32-secret";
 const publicDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "../public");
 
@@ -57,6 +57,10 @@ app.get("/api/products", (_req, res) => {
 });
 
 app.post("/api/create-order", (req, res) => {
+  if (!upiId || !payeeName) {
+    res.status(503).json({ error: "UPI payment configuration is unavailable" });
+    return;
+  }
   const { items, machineId = "machine-01" } = req.body as { items?: Array<{ productId: string; qty: number }>; machineId?: string };
   if (!Array.isArray(items) || items.length === 0) { res.status(400).json({ error: "Cart is empty" }); return; }
   const orderItems: any[] = [];
@@ -123,6 +127,10 @@ app.post("/api/esp32/confirm-dispense", (req, res) => {
 });
 
 function validAdmin(req: Request, res: Response) {
+  if (!adminKey) {
+    res.status(503).json({ error: "Admin access is not configured" });
+    return false;
+  }
   if (req.query.key !== adminKey) {
     res.status(401).json({ error: "Invalid admin key" });
     return false;

@@ -1,1 +1,2 @@
 - [API deployment health probes](api-deployment-health.md) — the deployed API service may probe its mounted base path, so keep a successful response at `/api` as well as `/api/healthz`.
+- [UPI handoff behavior](upi-handoff.md) — generic UPI deep links can return to the status page but do not provide a universal verified web payment callback.

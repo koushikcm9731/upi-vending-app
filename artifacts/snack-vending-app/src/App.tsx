@@ -274,12 +274,18 @@ function StateCard({ icon, title, body, action }: { icon: React.ReactNode; title
 }
 
 function StatusPage() {
+  const [location, setLocation] = useLocation();
   const savedOrder = useMemo(() => {
-    try { return JSON.parse(sessionStorage.getItem('pickdrop-order') || 'null') as { orderId: string; upiLink: string; amount: number } | null; } catch { return null; }
-  }, []);
+    try {
+      const queryOrderId = new URLSearchParams(window.location.search).get('orderId') || new URLSearchParams(window.location.search).get('txn');
+      const stored = JSON.parse(sessionStorage.getItem('pickdrop-order') || 'null') as { orderId: string; upiLink: string; amount: number } | null;
+      return queryOrderId && stored?.orderId !== queryOrderId ? { orderId: queryOrderId, upiLink: '', amount: 0 } : stored;
+    } catch { return null; }
+  }, [location]);
   const [manualId, setManualId] = useState(savedOrder?.orderId || '');
   const [orderId, setOrderId] = useState(savedOrder?.orderId || '');
   const [confirmError, setConfirmError] = useState('');
+  const [paymentHandoff, setPaymentHandoff] = useState(false);
   const queryClient = useQueryClient();
   const statusQuery = useGetOrderStatus(orderId || '', { query: { enabled: !!orderId, queryKey: getGetOrderStatusQueryKey(orderId || ''), refetchInterval: orderId ? 2500 : false } });
   const confirmPayment = useConfirmPayment();
@@ -297,6 +303,28 @@ function StatusPage() {
     });
   };
 
+  const openUpiPayment = () => {
+    if (!savedOrder?.upiLink) {
+      setConfirmError('The payment link is unavailable. Please return to the menu and try again.');
+      return;
+    }
+    setPaymentHandoff(true);
+    window.location.assign(savedOrder.upiLink);
+  };
+
+  useEffect(() => {
+    const refreshAfterPaymentApp = () => {
+      if (orderId) queryClient.invalidateQueries({ queryKey: getGetOrderStatusQueryKey(orderId) });
+      setPaymentHandoff(false);
+    };
+    window.addEventListener('pageshow', refreshAfterPaymentApp);
+    document.addEventListener('visibilitychange', refreshAfterPaymentApp);
+    return () => {
+      window.removeEventListener('pageshow', refreshAfterPaymentApp);
+      document.removeEventListener('visibilitychange', refreshAfterPaymentApp);
+    };
+  }, [orderId, queryClient]);
+
   return (
     <Shell>
       <main className="mx-auto max-w-[1120px] px-4 pb-28 pt-10 md:px-8 md:pb-14 md:pt-16">
@@ -311,7 +339,7 @@ function StatusPage() {
                 <div className="relative py-9"><div className="absolute left-[23px] top-12 h-[calc(100%-96px)] w-px bg-[hsl(var(--border))]" /><StatusStep number="01" title="Order created" copy="The machine has your selection." complete /><StatusStep number="02" title="Payment confirmed" copy={paid ? 'UPI payment received. Your snack is next.' : 'Open UPI below, then confirm payment.'} complete={paid} active={!paid} /><StatusStep number="03" title="Dispensing" copy={dispensed ? 'Your snack is waiting in the pickup bay.' : 'The motor starts as soon as payment clears.'} complete={dispensed} active={paid && !dispensed} /></div>
               )}
               {confirmError && <p className="mb-4 flex items-center gap-2 rounded-lg bg-[hsl(var(--destructive)/.1)] p-3 text-xs text-[hsl(var(--destructive))]" data-testid="error-confirm-payment"><CircleAlert size={15} /> {confirmError}</p>}
-              {!dispensed && <div className="flex flex-col gap-3 sm:flex-row"><a href={savedOrder?.upiLink || '#'} target="_blank" rel="noreferrer" data-testid="link-open-upi" className={`pressable flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-bold ${paid ? 'pointer-events-none bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]' : 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] shadow-[4px_4px_0_hsl(var(--foreground))]'}`}>{paid ? <Check size={16} /> : <ExternalLink size={16} />} {paid ? 'Payment received' : 'Open UPI payment'}</a><button onClick={confirm} disabled={confirmPayment.isPending || paid} data-testid="button-confirm-payment" className="pressable flex flex-1 items-center justify-center gap-2 rounded-xl border border-[hsl(var(--border))] px-4 py-3.5 text-sm font-bold disabled:opacity-50">{confirmPayment.isPending ? <RefreshCw size={16} className="animate-spin" /> : <ShieldCheck size={16} />} I’ve paid</button></div>}
+              {!dispensed && <div className="flex flex-col gap-3 sm:flex-row"><button onClick={openUpiPayment} disabled={paymentHandoff || paid} data-testid="link-open-upi" className={`pressable flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-bold disabled:cursor-wait disabled:opacity-60 ${paid ? 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]' : 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] shadow-[4px_4px_0_hsl(var(--foreground))]'}`}>{paymentHandoff ? <RefreshCw size={16} className="animate-spin" /> : paid ? <Check size={16} /> : <ExternalLink size={16} />} {paymentHandoff ? 'Opening UPI app…' : paid ? 'Payment received' : 'Open UPI payment'}</button><button onClick={confirm} disabled={confirmPayment.isPending || paid} data-testid="button-confirm-payment" className="pressable flex flex-1 items-center justify-center gap-2 rounded-xl border border-[hsl(var(--border))] px-4 py-3.5 text-sm font-bold disabled:opacity-50">{confirmPayment.isPending ? <RefreshCw size={16} className="animate-spin" /> : <ShieldCheck size={16} />} I’ve paid</button></div>}
             </div>
             <div className="flex flex-col gap-5">
               <div className="machine-grid scan-bar overflow-hidden rounded-3xl bg-[hsl(var(--foreground))] p-6 text-[hsl(var(--background))] md:p-7"><div className="relative"><div className="flex items-center justify-between"><span className="font-mono-ui text-[10px] uppercase tracking-[.18em] text-[hsl(var(--accent))]">machine telemetry</span><span className="font-mono-ui text-[10px] text-[hsl(var(--background)/.55)]">LIVE</span></div><div className="mt-12 grid grid-cols-2 gap-5"><div><p className="font-mono-ui text-[10px] uppercase text-[hsl(var(--background)/.55)]">status</p><p className="mt-1 text-xl font-bold">{dispensed ? 'BAY OPEN' : paid ? 'MOTOR READY' : 'STANDBY'}</p></div><div><p className="font-mono-ui text-[10px] uppercase text-[hsl(var(--background)/.55)]">order value</p><p className="mt-1 font-mono-ui text-xl font-bold">{savedOrder ? money(savedOrder.amount) : '—'}</p></div></div><div className="mt-9 border-t border-[hsl(var(--background)/.2)] pt-4 font-mono-ui text-[10px] text-[hsl(var(--background)/.55)]">AUTO REFRESH / 2.5 SEC</div></div></div>
