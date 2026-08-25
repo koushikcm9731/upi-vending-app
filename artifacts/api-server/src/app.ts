@@ -129,7 +129,7 @@ app.post("/api/create-order", async (req, res) => {
       return;
     }
     orders[orderId] = { items: orderItems, amount, machineId, status: "pending", totalUnits, remainingUnits: totalUnits, razorpayOrderId: razorpayOrder.id, createdAt: new Date().toISOString() };
-   onst upiLink = `upi://pay?pa=${encodeURIComponent(upiId || "")}&pn=${encodeURIComponent(payeeName || "Snack Machine")}&am=${amount}&tr=${orderId}&cu=INR`; res.json({ orderId, razorpayOrderId: razorpayOrder.id, razorpayKeyId, amount, upiLink });
+   const upiLink = `upi://pay?pa=${encodeURIComponent(upiId || "")}&pn=${encodeURIComponent(payeeName || "Snack Machine")}&am=${amount}&tr=${orderId}&cu=INR`; res.json({ orderId, razorpayOrderId: razorpayOrder.id, razorpayKeyId, amount, upiLink });
   } catch {
     res.status(502).json({ error: "Razorpay could not be reached" });
   }
