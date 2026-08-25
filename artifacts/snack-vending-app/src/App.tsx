@@ -17,7 +17,6 @@ import {
   Receipt,
   RefreshCw,
   Search,
-  ShieldCheck,
   ShoppingBag,
   Sparkles,
   Store,
@@ -30,7 +29,6 @@ import {
   getGetAdminSummaryQueryKey,
   getGetOrderStatusQueryKey,
   getListProductsQueryKey,
-  useConfirmPayment,
   useCreateOrder,
   useGetAdminSummary,
   useGetOrderStatus,
@@ -45,6 +43,23 @@ import NotFound from '@/pages/not-found';
 const queryClient = new QueryClient();
 
 type Cart = Record<string, number>;
+type RazorpayOrder = { orderId: string; razorpayOrderId: string; razorpayKeyId: string; amount: number };
+
+const loadRazorpayCheckout = () => new Promise<void>((resolve, reject) => {
+  if ((window as any).Razorpay) { resolve(); return; }
+  const existing = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+  if (existing) {
+    existing.addEventListener('load', () => resolve(), { once: true });
+    existing.addEventListener('error', () => reject(new Error('Razorpay checkout could not load')), { once: true });
+    return;
+  }
+  const script = document.createElement('script');
+  script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+  script.async = true;
+  script.onload = () => resolve();
+  script.onerror = () => reject(new Error('Razorpay checkout could not load'));
+  document.body.appendChild(script);
+});
 
 const money = (value: number) => `₹${value.toFixed(2)}`;
 const statusLabel = (status?: string) => {
@@ -278,38 +293,50 @@ function StatusPage() {
   const savedOrder = useMemo(() => {
     try {
       const queryOrderId = new URLSearchParams(window.location.search).get('orderId') || new URLSearchParams(window.location.search).get('txn');
-      const stored = JSON.parse(sessionStorage.getItem('pickdrop-order') || 'null') as { orderId: string; upiLink: string; amount: number } | null;
+      const stored = JSON.parse(sessionStorage.getItem('pickdrop-order') || 'null') as RazorpayOrder | null;
       return queryOrderId && stored?.orderId !== queryOrderId ? { orderId: queryOrderId, upiLink: '', amount: 0 } : stored;
     } catch { return null; }
   }, [location]);
   const [manualId, setManualId] = useState(savedOrder?.orderId || '');
   const [orderId, setOrderId] = useState(savedOrder?.orderId || '');
-  const [confirmError, setConfirmError] = useState('');
+  const [paymentError, setPaymentError] = useState('');
   const [paymentHandoff, setPaymentHandoff] = useState(false);
   const queryClient = useQueryClient();
   const statusQuery = useGetOrderStatus(orderId || '', { query: { enabled: !!orderId, queryKey: getGetOrderStatusQueryKey(orderId || ''), refetchInterval: orderId ? 2500 : false } });
-  const confirmPayment = useConfirmPayment();
   const status = statusQuery.data as StatusResponse | undefined;
   const normalized = (status?.status || '').toLowerCase();
   const paid = normalized.includes('paid') || normalized.includes('confirm') || normalized.includes('dispens');
   const dispensed = normalized.includes('dispens');
 
-  const confirm = () => {
-    if (!orderId) return;
-    setConfirmError('');
-    confirmPayment.mutate({ data: { orderId } }, {
-      onSuccess: (result) => queryClient.setQueryData(getGetOrderStatusQueryKey(orderId), result),
-      onError: () => setConfirmError('Payment confirmation did not reach the machine. Try once more.'),
-    });
-  };
-
-  const openUpiPayment = () => {
-    if (!savedOrder?.upiLink) {
-      setConfirmError('The payment link is unavailable. Please return to the menu and try again.');
+  const openRazorpayPayment = async () => {
+    if (!savedOrder?.razorpayOrderId || !savedOrder.razorpayKeyId) {
+      setPaymentError('The Razorpay order is unavailable. Please return to the menu and try again.');
       return;
     }
     setPaymentHandoff(true);
-    window.location.assign(savedOrder.upiLink);
+    setPaymentError('');
+    try {
+      await loadRazorpayCheckout();
+      const Checkout = (window as any).Razorpay;
+      const checkout = new Checkout({
+        key: savedOrder.razorpayKeyId,
+        amount: savedOrder.amount * 100,
+        currency: 'INR',
+        name: 'PICK//DROP',
+        description: 'Snack vending order',
+        order_id: savedOrder.razorpayOrderId,
+        handler: () => {
+          queryClient.invalidateQueries({ queryKey: getGetOrderStatusQueryKey(orderId) });
+          setPaymentHandoff(false);
+        },
+        modal: { ondismiss: () => setPaymentHandoff(false) },
+        theme: { color: '#087cf8' },
+      });
+      checkout.open();
+    } catch (error) {
+      setPaymentHandoff(false);
+      setPaymentError(error instanceof Error ? error.message : 'Razorpay checkout could not open.');
+    }
   };
 
   useEffect(() => {
@@ -338,8 +365,8 @@ function StatusPage() {
               {statusQuery.isLoading ? <div className="space-y-5 py-10"><div className="h-5 w-1/3 animate-pulse rounded bg-[hsl(var(--muted))]" /><div className="h-3 animate-pulse rounded bg-[hsl(var(--muted))]" /><div className="h-3 w-4/5 animate-pulse rounded bg-[hsl(var(--muted))]" /></div> : statusQuery.isError ? <StateCard icon={<TriangleAlert size={22} />} title="Can’t reach the machine" body="We’ll try again when you refresh the signal." action={<button onClick={() => statusQuery.refetch()} data-testid="button-retry-status" className="pressable rounded-lg bg-[hsl(var(--foreground))] px-4 py-2 text-sm font-bold text-[hsl(var(--background))]">Retry status</button>} /> : (
                 <div className="relative py-9"><div className="absolute left-[23px] top-12 h-[calc(100%-96px)] w-px bg-[hsl(var(--border))]" /><StatusStep number="01" title="Order created" copy="The machine has your selection." complete /><StatusStep number="02" title="Payment confirmed" copy={paid ? 'UPI payment received. Your snack is next.' : 'Open UPI below, then confirm payment.'} complete={paid} active={!paid} /><StatusStep number="03" title="Dispensing" copy={dispensed ? 'Your snack is waiting in the pickup bay.' : 'The motor starts as soon as payment clears.'} complete={dispensed} active={paid && !dispensed} /></div>
               )}
-              {confirmError && <p className="mb-4 flex items-center gap-2 rounded-lg bg-[hsl(var(--destructive)/.1)] p-3 text-xs text-[hsl(var(--destructive))]" data-testid="error-confirm-payment"><CircleAlert size={15} /> {confirmError}</p>}
-              {!dispensed && <div className="flex flex-col gap-3 sm:flex-row"><button onClick={openUpiPayment} disabled={paymentHandoff || paid} data-testid="link-open-upi" className={`pressable flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-bold disabled:cursor-wait disabled:opacity-60 ${paid ? 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]' : 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] shadow-[4px_4px_0_hsl(var(--foreground))]'}`}>{paymentHandoff ? <RefreshCw size={16} className="animate-spin" /> : paid ? <Check size={16} /> : <ExternalLink size={16} />} {paymentHandoff ? 'Opening UPI app…' : paid ? 'Payment received' : 'Open UPI payment'}</button><button onClick={confirm} disabled={confirmPayment.isPending || paid} data-testid="button-confirm-payment" className="pressable flex flex-1 items-center justify-center gap-2 rounded-xl border border-[hsl(var(--border))] px-4 py-3.5 text-sm font-bold disabled:opacity-50">{confirmPayment.isPending ? <RefreshCw size={16} className="animate-spin" /> : <ShieldCheck size={16} />} I’ve paid</button></div>}
+              {paymentError && <p className="mb-4 flex items-center gap-2 rounded-lg bg-[hsl(var(--destructive)/.1)] p-3 text-xs text-[hsl(var(--destructive))]" data-testid="error-razorpay-payment"><CircleAlert size={15} /> {paymentError}</p>}
+              {!dispensed && <div className="flex flex-col gap-3 sm:flex-row"><button onClick={openRazorpayPayment} disabled={paymentHandoff || paid} data-testid="button-open-razorpay" className={`pressable flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-bold disabled:cursor-wait disabled:opacity-60 ${paid ? 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]' : 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] shadow-[4px_4px_0_hsl(var(--foreground))]'}`}>{paymentHandoff ? <RefreshCw size={16} className="animate-spin" /> : paid ? <Check size={16} /> : <ExternalLink size={16} />} {paymentHandoff ? 'Opening Razorpay…' : paid ? 'Payment received' : 'Pay with Razorpay'}</button></div>}
             </div>
             <div className="flex flex-col gap-5">
               <div className="machine-grid scan-bar overflow-hidden rounded-3xl bg-[hsl(var(--foreground))] p-6 text-[hsl(var(--background))] md:p-7"><div className="relative"><div className="flex items-center justify-between"><span className="font-mono-ui text-[10px] uppercase tracking-[.18em] text-[hsl(var(--accent))]">machine telemetry</span><span className="font-mono-ui text-[10px] text-[hsl(var(--background)/.55)]">LIVE</span></div><div className="mt-12 grid grid-cols-2 gap-5"><div><p className="font-mono-ui text-[10px] uppercase text-[hsl(var(--background)/.55)]">status</p><p className="mt-1 text-xl font-bold">{dispensed ? 'BAY OPEN' : paid ? 'MOTOR READY' : 'STANDBY'}</p></div><div><p className="font-mono-ui text-[10px] uppercase text-[hsl(var(--background)/.55)]">order value</p><p className="mt-1 font-mono-ui text-xl font-bold">{savedOrder ? money(savedOrder.amount) : '—'}</p></div></div><div className="mt-9 border-t border-[hsl(var(--background)/.2)] pt-4 font-mono-ui text-[10px] text-[hsl(var(--background)/.55)]">AUTO REFRESH / 2.5 SEC</div></div></div>

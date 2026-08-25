@@ -20,6 +20,9 @@ const upiId = process.env["UPI_ID"]?.trim();
 const payeeName = process.env["UPI_PAYEE_NAME"]?.trim();
 const adminKey = process.env["ADMIN_KEY"]?.trim();
 const espSecret = process.env["ESP32_SHARED_SECRET"] || "demo-esp32-secret";
+const razorpayKeyId = process.env["RAZORPAY_KEY_ID"]?.trim();
+const razorpayKeySecret = process.env["RAZORPAY_KEY_SECRET"]?.trim();
+const razorpayWebhookSecret = process.env["RAZORPAY_WEBHOOK_SECRET"]?.trim();
 const publicDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "../public");
 
 app.use(
@@ -42,6 +45,36 @@ app.use(
   }),
 );
 app.use(cors());
+app.post("/api/webhooks/razorpay", express.raw({ type: "application/json" }), (req, res) => {
+  if (!razorpayWebhookSecret) {
+    res.status(503).json({ error: "Razorpay webhook is not configured" });
+    return;
+  }
+  const signature = req.header("x-razorpay-signature");
+  const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from("");
+  const expected = crypto.createHmac("sha256", razorpayWebhookSecret).update(rawBody).digest("hex");
+  if (!signature || signature.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+    res.status(401).json({ error: "Invalid webhook signature" });
+    return;
+  }
+  try {
+    const event = JSON.parse(rawBody.toString("utf8")) as {
+      event?: string;
+      payload?: { payment?: { entity?: { order_id?: string; status?: string; amount?: number } } };
+    };
+    if (event.event === "payment.captured" || event.event === "order.paid") {
+      const payment = event.payload?.payment?.entity;
+      const orderEntry = Object.entries(orders).find(([, candidate]: [string, any]) => candidate.razorpayOrderId === payment?.order_id);
+      const order = orderEntry?.[1];
+      if (order && (payment?.status === "captured" || event.event === "order.paid") && payment?.amount === order.amount * 100) {
+        markOrderPaid(orderEntry[0], order);
+      }
+    }
+    res.sendStatus(200);
+  } catch {
+    res.status(400).json({ error: "Invalid webhook payload" });
+  }
+});
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -56,9 +89,9 @@ app.get("/api/products", (_req, res) => {
   res.json(products.map(({ id, name, price, stock }) => ({ id, name, price, stock })));
 });
 
-app.post("/api/create-order", (req, res) => {
-  if (!upiId || !payeeName) {
-    res.status(503).json({ error: "UPI payment configuration is unavailable" });
+app.post("/api/create-order", async (req, res) => {
+  if (!razorpayKeyId || !razorpayKeySecret) {
+    res.status(503).json({ error: "Razorpay payment configuration is unavailable" });
     return;
   }
   const { items, machineId = "machine-01" } = req.body as { items?: Array<{ productId: string; qty: number }>; machineId?: string };
@@ -77,23 +110,39 @@ app.post("/api/create-order", (req, res) => {
   if (!orderItems.length) { res.status(400).json({ error: "Cart is empty" }); return; }
   const orderId = `TXN${crypto.randomBytes(8).toString("hex")}`;
   const totalUnits = orderItems.reduce((sum, item) => sum + item.qty, 0);
-  orders[orderId] = { items: orderItems, amount, machineId, status: "pending", totalUnits, remainingUnits: totalUnits, createdAt: new Date().toISOString() };
-  const upiLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(`Order ${orderId}`)}`;
-  res.json({ orderId, upiLink, amount });
+  try {
+    const razorpayResponse = await fetch("https://api.razorpay.com/v1/orders", {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString("base64")}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ amount: amount * 100, currency: "INR", receipt: orderId, notes: { machineId } }),
+    });
+    if (!razorpayResponse.ok) {
+      res.status(502).json({ error: "Razorpay could not create the payment order" });
+      return;
+    }
+    const razorpayOrder = await razorpayResponse.json() as { id?: string; amount?: number; currency?: string };
+    if (!razorpayOrder.id || razorpayOrder.amount !== amount * 100 || razorpayOrder.currency !== "INR") {
+      res.status(502).json({ error: "Razorpay returned an invalid payment order" });
+      return;
+    }
+    orders[orderId] = { items: orderItems, amount, machineId, status: "pending", totalUnits, remainingUnits: totalUnits, razorpayOrderId: razorpayOrder.id, createdAt: new Date().toISOString() };
+    res.json({ orderId, razorpayOrderId: razorpayOrder.id, razorpayKeyId, amount });
+  } catch {
+    res.status(502).json({ error: "Razorpay could not be reached" });
+  }
 });
 
-app.post("/api/confirm-payment", (req, res) => {
-  const order = orders[req.body?.orderId];
-  if (!order) { res.status(404).json({ error: "Order not found" }); return; }
-  if (order.status === "pending") {
-    order.status = "paid";
-    pendingDispense[order.machineId] ||= [];
-    for (const item of order.items) for (let index = 0; index < item.qty; index += 1) {
-      pendingDispense[order.machineId].push({ commandId: crypto.randomBytes(6).toString("hex"), orderId: req.body.orderId, slot: item.slot });
-    }
+function markOrderPaid(orderId: string, order: any) {
+  if (order.status !== "pending") return;
+  order.status = "paid";
+  pendingDispense[order.machineId] ||= [];
+  for (const item of order.items) for (let index = 0; index < item.qty; index += 1) {
+    pendingDispense[order.machineId].push({ commandId: crypto.randomBytes(6).toString("hex"), orderId, slot: item.slot });
   }
-  res.json({ status: order.status });
-});
+}
 
 app.get("/api/order-status/:orderId", (req, res) => {
   const order = orders[req.params.orderId];
