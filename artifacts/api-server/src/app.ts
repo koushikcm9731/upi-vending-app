@@ -150,6 +150,20 @@ app.get("/api/order-status/:orderId", (req, res) => {
   res.json({ status: order.status });
 });
 
+// Manual confirmation for direct personal UPI payments (no payment gateway
+// involved, so there's no webhook to verify this automatically). The
+// customer taps "I've Paid" after actually paying via their UPI app.
+app.post("/api/confirm-payment", (req, res) => {
+  const { orderId } = req.body as { orderId?: string };
+  if (!orderId) { res.status(400).json({ error: "Missing orderId" }); return; }
+  const order = orders[orderId];
+  if (!order) { res.status(404).json({ error: "Order not found" }); return; }
+  if (order.status === "pending") {
+    markOrderPaid(orderId, order);
+  }
+  res.json({ status: order.status });
+});
+
 app.get("/api/esp32/poll", (req, res) => {
   if (req.query.secret !== espSecret) { res.status(401).json({ error: "Bad secret" }); return; }
   const queue = pendingDispense[String(req.query.machineId || "machine-01")] || [];
