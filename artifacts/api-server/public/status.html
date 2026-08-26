@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Payment status — SIT Vending Machine</title>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   <style>
     :root{color-scheme:dark;--bg:#0b1730;--panel:#122348;--line:#29436f;--ink:#eef5ff;--dim:#a9b9d4;--blue:#3d9bff;--cyan:#67e8f9;--green:#45d6a3;--red:#ff6b6b}
     *{box-sizing:border-box}body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font:16px system-ui,sans-serif;display:grid;place-items:center;padding:20px}
@@ -17,14 +18,76 @@
 <body><main>
   <div class="mark">◈</div><div class="eyebrow">SIT Vending Machine</div><h1 id="title">Ready for payment</h1>
   <div class="detail" id="detail"></div><div id="message"></div>
-  <button id="pay">Open UPI app</button><button class="secondary" id="confirm">I've Paid</button>
+  <button id="pay">Pay Now</button>
 </main>
 <script>
-  const params=new URLSearchParams(location.search), txn=params.get("txn"), upi=params.get("upi"), amount=params.get("amount");
-  const title=document.getElementById("title"), detail=document.getElementById("detail"), message=document.getElementById("message");
-  detail.textContent=txn?`Order ${txn} · ₹${amount||"0"}`:"No order selected";
-  document.getElementById("pay").onclick=()=>{if(upi) location.href=upi};
-  document.getElementById("confirm").onclick=async()=>{if(!txn)return;message.textContent="Confirming payment…";try{const r=await fetch("/api/confirm-payment",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({orderId:txn})});const d=await r.json();if(!r.ok)throw Error(d.error);message.textContent="Payment received. Your snack is being prepared.";message.className="done";poll()}catch(e){message.textContent=e.message;message.className="error"}};
-  async function poll(){const r=await fetch("/api/order-status/"+encodeURIComponent(txn));const d=await r.json();if(d.status==="dispensed"){title.textContent="Enjoy your snack";message.textContent="Dispensed successfully.";return}if(d.status==="paid"){title.textContent="Dispensing…";setTimeout(poll,3000)}}
+  const params = new URLSearchParams(location.search);
+  const txn = params.get("txn");
+  const amount = params.get("amount");
+  const rzpOrderId = params.get("rzpOrderId");
+  const rzpKeyId = params.get("rzpKeyId");
+
+  const title = document.getElementById("title");
+  const detail = document.getElementById("detail");
+  const message = document.getElementById("message");
+
+  detail.textContent = txn ? `Order ${txn} · ₹${amount || "0"}` : "No order selected";
+
+  document.getElementById("pay").onclick = () => {
+    if (!rzpOrderId || !rzpKeyId) {
+      message.textContent = "Payment could not be started. Please go back and try again.";
+      message.className = "error";
+      return;
+    }
+
+    const options = {
+      key: rzpKeyId,
+      amount: Number(amount) * 100,
+      currency: "INR",
+      name: "SIT Vending Machine",
+      description: `Order ${txn}`,
+      order_id: rzpOrderId,
+      handler: function () {
+        // Payment succeeded in the Razorpay popup. The backend webhook
+        // independently verifies and marks the order paid — this just
+        // starts polling so the customer sees live status.
+        message.textContent = "Payment received. Confirming...";
+        message.className = "done";
+        poll();
+      },
+      modal: {
+        ondismiss: function () {
+          message.textContent = "Payment cancelled.";
+          message.className = "error";
+        },
+      },
+      theme: { color: "#3d9bff" },
+    };
+
+    const rzp = new Razorpay(options);
+    rzp.on("payment.failed", function (response) {
+      message.textContent = "Payment failed: " + (response.error?.description || "please try again.");
+      message.className = "error";
+    });
+    rzp.open();
+  };
+
+  async function poll() {
+    const r = await fetch("/api/order-status/" + encodeURIComponent(txn));
+    const d = await r.json();
+    if (d.status === "dispensed") {
+      title.textContent = "Enjoy your snack";
+      message.textContent = "Dispensed successfully.";
+      return;
+    }
+    if (d.status === "paid") {
+      title.textContent = "Dispensing…";
+      setTimeout(poll, 3000);
+      return;
+    }
+    if (d.status === "pending") {
+      setTimeout(poll, 3000);
+    }
+  }
 </script>
 </body></html>
