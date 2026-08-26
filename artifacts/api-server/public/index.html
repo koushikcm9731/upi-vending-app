@@ -376,12 +376,13 @@
 
       if (!res.ok) throw new Error(data.error || "Could not start payment");
 
-      // Send the customer to the status page, which shows a button to open
-      // their UPI app plus an "I've Paid" confirmation button.
+      // Send the customer to the status page, which now opens Razorpay's
+      // real Checkout (verified merchant flow) instead of a raw UPI link.
       const params = new URLSearchParams({
         txn: data.orderId,
-        upi: data.upiLink,
         amount: data.amount,
+        rzpOrderId: data.razorpayOrderId,
+        rzpKeyId: data.razorpayKeyId,
       });
        window.location.href = `/status?${params.toString()}`;
     } catch (e) {
