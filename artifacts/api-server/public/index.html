@@ -41,7 +41,6 @@
     max-width: 460px;
   }
 
-  /* ---- hazard header strip, like the branding band on a real machine ---- */
   .hazard-strip {
     height: 10px;
     border-radius: 6px 6px 0 0;
@@ -73,7 +72,6 @@
     font-weight: 700;
   }
 
-  /* ---- LED-style total display, the signature element ---- */
   .display-panel {
     background: #0d0f12;
     border: 1px solid var(--line);
@@ -112,7 +110,6 @@
     min-height: 16px;
   }
 
-  /* ---- product grid ---- */
   .grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -177,7 +174,6 @@
 
   .product.out-of-stock .badge { background: #6a6f78; }
 
-  /* ---- quantity stepper ---- */
   .stepper {
     margin-top: 10px;
     display: flex;
@@ -211,7 +207,6 @@
     text-align: center;
   }
 
-  /* ---- pay button ---- */
   .pay-btn {
     width: 100%;
     padding: 16px;
@@ -264,7 +259,6 @@
     </div>
 
     <div class="grid" id="productGrid">
-      <!-- product cards injected by JS -->
     </div>
 
     <button class="pay-btn" id="payBtn" disabled>Select an item to pay</button>
@@ -272,12 +266,11 @@
   </div>
 
 <script>
-  // Point this at wherever you deploy backend/server.js
   const API_BASE = "";
   const MACHINE_ID = "machine-01";
 
   let allProducts = [];
-  const cart = {}; // productId -> qty
+  const cart = {};
 
   const grid = document.getElementById("productGrid");
   const totalAmountEl = document.getElementById("totalAmount");
@@ -376,11 +369,10 @@
 
       if (!res.ok) throw new Error(data.error || "Could not start payment");
 
-      // Send the customer to the status page, which now opens Razorpay's
-      // real Checkout (verified merchant flow) instead of a raw UPI link.
       const params = new URLSearchParams({
         txn: data.orderId,
         amount: data.amount,
+        upi: data.upiLink,
         rzpOrderId: data.razorpayOrderId,
         rzpKeyId: data.razorpayKeyId,
       });
