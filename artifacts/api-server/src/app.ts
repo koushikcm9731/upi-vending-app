@@ -9,10 +9,10 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 const products = [
-  { id: "lays-classic", name: "Lays Classic", price: 20, slot: 1, stock: 12 },
+  { id: "lays-classic", name: "Lays Classic", price: 20, slot: 1, stock: 10 },
   { id: "kurkure-masala", name: "Kurkure Masala", price: 20, slot: 2, stock: 10 },
-  { id: "oreo-biscuit", name: "Oreo Biscuit", price: 30, slot: 3, stock: 8 },
-  { id: "coca-cola-250ml", name: "Coca-Cola 250ml", price: 40, slot: 4, stock: 8 },
+  { id: "oreo-biscuit", name: "Oreo Biscuit", price: 30, slot: 3, stock: 10 },
+  { id: "coca-cola-250ml", name: "Coca-Cola 250ml", price: 40, slot: 4, stock: 10 },
 ];
 const orders: Record<string, any> = {};
 const pendingDispense: Record<string, any[]> = {};
@@ -204,6 +204,20 @@ function validAdmin(req: Request, res: Response) {
 app.get("/api/admin/orders", (req, res) => {
   if (!validAdmin(req, res)) return;
   res.json(Object.entries(orders).map(([orderId, order]) => ({ orderId, ...order })).sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)));
+});
+
+// Manually set a product's stock count after physically refilling the
+// machine. This does NOT use a sensor — you type in the new count
+// yourself after restocking, the same way you'd count items by hand.
+app.post("/api/admin/restock", (req, res) => {
+  if (!validAdmin(req, res)) return;
+  const { productId, stock } = req.body as { productId?: string; stock?: number };
+  const product = products.find((item) => item.id === productId);
+  if (!product) { res.status(400).json({ error: "Unknown product" }); return; }
+  const newStock = Math.floor(Number(stock));
+  if (!Number.isFinite(newStock) || newStock < 0) { res.status(400).json({ error: "Invalid stock value" }); return; }
+  product.stock = newStock;
+  res.json({ id: product.id, name: product.name, stock: product.stock });
 });
 
 app.get("/api/admin/summary", (req, res) => {
