@@ -1,276 +1,250 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Admin Dashboard — Vending Machine</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #16181c;
-    --panel: #212429;
-    --panel-raised: #262a30;
-    --line: #34383f;
-    --ink: #edeef0;
-    --ink-dim: #8b9099;
-    --hazard: #f5c328;
-    --led: #ff4433;
-    --ok: #35d07f;
+    --bg: #0b0c10;
+    --panel: #17181d;
+    --line: #2a2c33;
+    --ink: #eef0f3;
+    --dim: #9aa0ab;
+    --accent: #f5c542;
+    --green: #35d07f;
+    --red: #ff6b6b;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    min-height: 100vh;
     background: var(--bg);
     color: var(--ink);
-    font-family: 'Space Grotesk', sans-serif;
-    padding: 24px 16px 60px;
+    font-family: system-ui, -apple-system, sans-serif;
+    padding: 32px 24px 80px;
   }
-  .wrap { max-width: 900px; margin: 0 auto; }
-
-  h1 { font-size: 22px; margin: 0 0 4px; }
-  .sub { color: var(--ink-dim); font-size: 13px; margin: 0 0 24px; }
-
-  .login-box {
-    max-width: 360px;
-    margin: 60px auto;
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 24px;
-    text-align: center;
-  }
-  .login-box input {
-    width: 100%;
-    padding: 12px;
-    margin: 16px 0;
-    border-radius: 8px;
-    border: 1px solid var(--line);
-    background: var(--panel-raised);
-    color: var(--ink);
-    font-family: 'Share Tech Mono', monospace;
-  }
-  .login-box button, .refresh-btn {
-    width: 100%;
-    padding: 12px;
-    border-radius: 8px;
+  .wrap { max-width: 960px; margin: 0 auto; }
+  h1 { margin: 0 0 4px; font-size: 24px; }
+  .updated { color: var(--dim); font-size: 13px; margin-bottom: 20px; }
+  .refresh {
+    background: var(--accent);
+    color: #1a1400;
     border: none;
-    background: var(--hazard);
-    color: #17181a;
+    padding: 10px 18px;
+    border-radius: 8px;
     font-weight: 700;
     cursor: pointer;
-  }
-
-  .stat-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 12px;
     margin-bottom: 24px;
   }
-  .stat-card {
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
+  .stat {
     background: var(--panel);
     border: 1px solid var(--line);
     border-radius: 10px;
-    padding: 16px;
+    padding: 14px 16px;
   }
-  .stat-card .label {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--ink-dim);
-    margin-bottom: 6px;
-  }
-  .stat-card .value {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 24px;
-    color: var(--hazard);
-  }
-  .stat-card.revenue .value { color: var(--ok); }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    background: var(--panel);
+  .stat .label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
+  .stat .value { font-size: 24px; font-weight: 700; margin-top: 4px; font-family: monospace; }
+  .stat .value.revenue { color: var(--green); }
+  .stat .value.count { color: var(--accent); }
+  section { margin-bottom: 28px; }
+  h2 { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); margin-bottom: 10px; }
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border-radius: 10px; overflow: hidden; }
+  th { text-align: left; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 14px; }
+  tr:last-child td { border-bottom: none; }
+  .empty { padding: 14px; color: var(--dim); background: var(--panel); border-radius: 10px; font-size: 14px; }
+  .status-tag { background: #2a2c33; padding: 2px 8px; border-radius: 6px; font-size: 12px; }
+  .status-tag.paid, .status-tag.dispensed { color: var(--green); }
+  .restock-cell { display: flex; align-items: center; gap: 8px; }
+  .restock-cell input {
+    width: 60px;
+    background: #0b0c10;
     border: 1px solid var(--line);
-    border-radius: 10px;
-    overflow: hidden;
-    margin-bottom: 24px;
+    color: var(--ink);
+    border-radius: 6px;
+    padding: 5px 8px;
     font-size: 13px;
   }
-  th, td {
-    text-align: left;
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--line);
-  }
-  th {
-    color: var(--ink-dim);
-    text-transform: uppercase;
-    font-size: 11px;
-    letter-spacing: 0.05em;
-  }
-  td.mono, .mono { font-family: 'Share Tech Mono', monospace; }
-  tr:last-child td { border-bottom: none; }
-
-  .badge {
-    display: inline-block;
-    padding: 3px 8px;
+  .restock-cell button {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 5px 10px;
     border-radius: 6px;
-    font-size: 11px;
-    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
   }
-  .badge.dispensed { background: rgba(53,208,127,0.15); color: var(--ok); }
-  .badge.paid { background: rgba(245,195,40,0.15); color: var(--hazard); }
-  .badge.pending { background: rgba(139,144,153,0.15); color: var(--ink-dim); }
-
-  .section-title {
-    font-size: 14px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--ink-dim);
-    margin: 24px 0 10px;
-  }
-
-  .refresh-btn { max-width: 200px; margin-bottom: 20px; }
-  .error { color: var(--led); font-family: 'Share Tech Mono', monospace; font-size: 13px; }
+  .restock-cell button:hover { background: var(--accent); color: #1a1400; }
+  .restock-msg { font-size: 11px; color: var(--dim); margin-left: 4px; }
+  .login { max-width: 320px; margin: 80px auto; text-align: center; }
+  .login input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); margin-bottom: 10px; }
+  .login button { width: 100%; padding: 10px; border-radius: 8px; border: none; background: var(--accent); color: #1a1400; font-weight: 700; cursor: pointer; }
 </style>
 </head>
 <body>
 
-  <div class="wrap">
-    <div id="loginView" class="login-box">
-      <h1>Admin Dashboard</h1>
-      <p class="sub">Enter your admin key to view sales</p>
-      <input type="password" id="keyInput" placeholder="Admin key" />
-      <button onclick="login()">View Dashboard</button>
-      <p class="error" id="loginError"></p>
-    </div>
+<div id="loginScreen" class="login" style="display:none">
+  <h1>Admin Login</h1>
+  <input id="keyInput" type="password" placeholder="Admin key" />
+  <button id="loginBtn">Enter</button>
+</div>
 
-    <div id="dashboardView" style="display:none;">
-      <h1>Vending Machine — Sales Dashboard</h1>
-      <p class="sub" id="lastUpdated"></p>
+<div id="dashboard" class="wrap" style="display:none">
+  <h1>Vending Machine — Sales Dashboard</h1>
+  <div class="updated" id="updatedAt">Last updated: —</div>
+  <button class="refresh" id="refreshBtn">Refresh Now</button>
 
-      <button class="refresh-btn" onclick="loadAll()">Refresh Now</button>
-
-      <div class="stat-grid" id="statGrid"></div>
-
-      <div class="section-title">Current Stock</div>
-      <table id="stockTable"><tbody></tbody></table>
-
-      <div class="section-title">Sales by Product</div>
-      <table id="productTable"><tbody></tbody></table>
-
-      <div class="section-title">Recent Orders</div>
-      <table id="ordersTable"><tbody></tbody></table>
-    </div>
+  <div class="stats">
+    <div class="stat"><div class="label">Total Revenue</div><div class="value revenue" id="totalRevenue">₹0</div></div>
+    <div class="stat"><div class="label">Total Orders</div><div class="value count" id="totalOrders">0</div></div>
+    <div class="stat"><div class="label">Dispensed</div><div class="value count" id="dispensedOrders">0</div></div>
+    <div class="stat"><div class="label">Pending</div><div class="value count" id="pendingOrders">0</div></div>
   </div>
 
+  <section>
+    <h2>Current Stock</h2>
+    <table>
+      <thead><tr><th>Product</th><th>Stock Left</th><th>Restock</th></tr></thead>
+      <tbody id="stockBody"></tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Sales By Product</h2>
+    <div id="salesBody" class="empty">No sales yet</div>
+  </section>
+
+  <section>
+    <h2>Recent Orders</h2>
+    <div id="ordersWrap" class="empty">No orders yet</div>
+  </section>
+</div>
+
 <script>
-  const API_BASE = "";
+  const params = new URLSearchParams(location.search);
+  let adminKey = params.get("key") || sessionStorage.getItem("adminKey") || "";
 
-  let adminKey = "";
+  const loginScreen = document.getElementById("loginScreen");
+  const dashboard = document.getElementById("dashboard");
 
-  function login() {
-    adminKey = document.getElementById("keyInput").value.trim();
-    if (!adminKey) return;
+  function showDashboard() {
+    loginScreen.style.display = "none";
+    dashboard.style.display = "block";
     loadAll();
   }
 
+  if (adminKey) {
+    sessionStorage.setItem("adminKey", adminKey);
+    showDashboard();
+  } else {
+    loginScreen.style.display = "block";
+  }
+
+  document.getElementById("loginBtn").addEventListener("click", () => {
+    adminKey = document.getElementById("keyInput").value.trim();
+    if (!adminKey) return;
+    sessionStorage.setItem("adminKey", adminKey);
+    showDashboard();
+  });
+
+  document.getElementById("refreshBtn").addEventListener("click", loadAll);
+
   async function loadAll() {
+    await Promise.all([loadSummary(), loadOrders()]);
+    document.getElementById("updatedAt").textContent = "Last updated: " + new Date().toLocaleTimeString();
+  }
+
+  async function loadSummary() {
+    const res = await fetch(`/api/admin/summary?key=${encodeURIComponent(adminKey)}`);
+    if (res.status === 401) { sessionStorage.removeItem("adminKey"); location.reload(); return; }
+    const data = await res.json();
+
+    document.getElementById("totalRevenue").textContent = "₹" + data.totalRevenue;
+    document.getElementById("totalOrders").textContent = data.totalOrders;
+    document.getElementById("dispensedOrders").textContent = data.dispensedOrders;
+    document.getElementById("pendingOrders").textContent = data.pendingOrders;
+
+    const stockBody = document.getElementById("stockBody");
+    stockBody.innerHTML = "";
+    data.currentStock.forEach((p) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${p.name}</td>
+        <td>${p.stock}</td>
+        <td>
+          <div class="restock-cell">
+            <input type="number" min="0" placeholder="${p.stock}" data-product="${p.id}" />
+            <button data-product="${p.id}">Update</button>
+            <span class="restock-msg" data-msg="${p.id}"></span>
+          </div>
+        </td>`;
+      stockBody.appendChild(tr);
+    });
+    stockBody.querySelectorAll("button").forEach((btn) => {
+      btn.addEventListener("click", () => restock(btn.dataset.product));
+    });
+
+    const salesBody = document.getElementById("salesBody");
+    if (!data.perProduct || data.perProduct.length === 0) {
+      salesBody.className = "empty";
+      salesBody.textContent = "No sales yet";
+    } else {
+      salesBody.className = "";
+      const table = document.createElement("table");
+      table.innerHTML = `<thead><tr><th>Product</th><th>Qty Sold</th><th>Revenue</th></tr></thead>
+        <tbody>${data.perProduct.map((p) => `<tr><td>${p.name}</td><td>${p.qtySold}</td><td>₹${p.revenue}</td></tr>`).join("")}</tbody>`;
+      salesBody.replaceWith(table);
+      table.id = "salesBody";
+    }
+  }
+
+  async function restock(productId) {
+    const input = document.querySelector(`input[data-product="${productId}"]`);
+    const msg = document.querySelector(`span[data-msg="${productId}"]`);
+    const newStock = input.value.trim();
+    if (newStock === "") { msg.textContent = "Enter a number"; return; }
+    msg.textContent = "Saving...";
     try {
-      const [summaryRes, ordersRes] = await Promise.all([
-        fetch(`${API_BASE}/api/admin/summary?key=${encodeURIComponent(adminKey)}`),
-        fetch(`${API_BASE}/api/admin/orders?key=${encodeURIComponent(adminKey)}`),
-      ]);
-
-      if (summaryRes.status === 401 || ordersRes.status === 401) {
-        document.getElementById("loginError").textContent = "Invalid admin key";
-        return;
-      }
-
-      const summary = await summaryRes.json();
-      const orders = await ordersRes.json();
-
-      document.getElementById("loginView").style.display = "none";
-      document.getElementById("dashboardView").style.display = "block";
-      document.getElementById("lastUpdated").textContent = "Last updated: " + new Date().toLocaleTimeString();
-
-      renderStats(summary);
-      renderStock(summary.currentStock);
-      renderProducts(summary.perProduct);
-      renderOrders(orders);
+      const res = await fetch(`/api/admin/restock?key=${encodeURIComponent(adminKey)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId, stock: Number(newStock) }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
+      msg.textContent = "Updated ✓";
+      input.value = "";
+      loadSummary();
     } catch (e) {
-      document.getElementById("loginError").textContent = "Could not reach the backend. Check API_BASE and that the server is running.";
+      msg.textContent = e.message;
     }
   }
 
-  function renderStats(summary) {
-    const grid = document.getElementById("statGrid");
-    grid.innerHTML = `
-      <div class="stat-card revenue">
-        <div class="label">Total Revenue</div>
-        <div class="value">₹${summary.totalRevenue}</div>
-      </div>
-      <div class="stat-card">
-        <div class="label">Total Orders</div>
-        <div class="value">${summary.totalOrders}</div>
-      </div>
-      <div class="stat-card">
-        <div class="label">Dispensed</div>
-        <div class="value">${summary.dispensedOrders}</div>
-      </div>
-      <div class="stat-card">
-        <div class="label">Pending</div>
-        <div class="value">${summary.pendingOrders}</div>
-      </div>
-    `;
-  }
-
-  function renderStock(stock) {
-    const table = document.getElementById("stockTable");
-    table.innerHTML = `
-      <tr><th>Product</th><th>Stock Left</th></tr>
-      ${stock.map((s) => `<tr><td>${s.name}</td><td class="mono">${s.stock}</td></tr>`).join("")}
-    `;
-  }
-
-  function renderProducts(perProduct) {
-    const table = document.getElementById("productTable");
-    if (perProduct.length === 0) {
-      table.innerHTML = `<tr><td>No sales yet</td></tr>`;
+  async function loadOrders() {
+    const res = await fetch(`/api/admin/orders?key=${encodeURIComponent(adminKey)}`);
+    if (res.status === 401) return;
+    const orders = await res.json();
+    const wrap = document.getElementById("ordersWrap");
+    if (!orders || orders.length === 0) {
+      wrap.className = "empty";
+      wrap.textContent = "No orders yet";
       return;
     }
-    table.innerHTML = `
-      <tr><th>Product</th><th>Qty Sold</th><th>Revenue</th></tr>
-      ${perProduct.map((p) => `<tr><td>${p.name}</td><td class="mono">${p.qtySold}</td><td class="mono">₹${p.revenue}</td></tr>`).join("")}
-    `;
-  }
-
-  function renderOrders(orders) {
-    const table = document.getElementById("ordersTable");
-    if (orders.length === 0) {
-      table.innerHTML = `<tr><td>No orders yet</td></tr>`;
-      return;
-    }
-    table.innerHTML = `
-      <tr><th>Order</th><th>Items</th><th>Amount</th><th>Status</th><th>Time</th></tr>
-      ${orders.slice(0, 30).map((o) => `
+    wrap.className = "";
+    const table = document.createElement("table");
+    table.innerHTML = `<thead><tr><th>Order</th><th>Items</th><th>Amount</th><th>Status</th><th>Time</th></tr></thead>
+      <tbody>${orders.slice(0, 20).map((o) => `
         <tr>
-          <td class="mono">${o.orderId.slice(0, 10)}...</td>
+          <td>${o.orderId.slice(0, 10)}...</td>
           <td>${o.items.map((i) => `${i.qty}x ${i.name}`).join(", ")}</td>
-          <td class="mono">₹${o.amount}</td>
-          <td><span class="badge ${o.status}">${o.status}</span></td>
-          <td class="mono">${new Date(o.createdAt).toLocaleString()}</td>
-        </tr>
-      `).join("")}
-    `;
+          <td>₹${o.amount}</td>
+          <td><span class="status-tag ${o.status}">${o.status}</span></td>
+          <td>${new Date(o.createdAt).toLocaleString()}</td>
+        </tr>`).join("")}</tbody>`;
+    wrap.replaceWith(table);
+    table.id = "ordersWrap";
   }
-
-  // Auto-refresh every 10 seconds once logged in
-  setInterval(() => {
-    if (adminKey) loadAll();
-  }, 10000);
 </script>
-
 </body>
 </html>
