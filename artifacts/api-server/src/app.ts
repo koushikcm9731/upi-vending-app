@@ -154,6 +154,9 @@ app.get("/api/order-status/:orderId", (req, res) => {
 // involved, so there's no webhook to verify this automatically). The
 // customer taps "I've Paid" after actually paying via their UPI app.
 app.post("/api/confirm-payment", (req, res) => {
+  // Admin-only now that real payments are verified by the Razorpay webhook.
+  // Without this check, anyone could mark an order paid without paying.
+  if (!validAdmin(req, res)) return;
   const { orderId } = req.body as { orderId?: string };
   if (!orderId) { res.status(400).json({ error: "Missing orderId" }); return; }
   const order = orders[orderId];
