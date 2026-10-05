@@ -77,6 +77,8 @@
       name: "SIT Vending Machine",
       description: `Order ${txn}`,
       order_id: rzpOrderId,
+      // Ask Checkout not to require the phone number and email up front.
+      hidden: { contact: true, email: true },
       // The snack is released only after Razorpay's webhook marks the order
       // paid on the server. This handler just starts watching the status.
       handler: function () {
