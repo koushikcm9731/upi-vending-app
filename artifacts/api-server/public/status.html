@@ -3,28 +3,105 @@
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Payment status — SIT Vending Machine</title>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   <style>
-    :root{color-scheme:dark;--bg:#0b1730;--panel:#122348;--line:#29436f;--ink:#eef5ff;--dim:#a9b9d4;--blue:#3d9bff;--cyan:#67e8f9;--green:#45d6a3;--red:#ff6b6b}
+    :root{color-scheme:dark;--bg:#0b1730;--panel:#122348;--line:#29436f;--ink:#eef5ff;--dim:#a9b9d4;--blue:#3d9bff;--green:#45d6a3;--red:#ff6b6b}
     *{box-sizing:border-box}body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font:16px system-ui,sans-serif;display:grid;place-items:center;padding:20px}
     main{width:min(100%,440px);background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:30px;text-align:center}
     .mark{font-size:44px;margin-bottom:10px}.eyebrow{color:var(--dim);font-size:12px;text-transform:uppercase;letter-spacing:.12em}
     h1{margin:8px 0;font-size:25px}.detail{color:var(--dim);line-height:1.5;margin:10px 0 24px}
     button{width:100%;border:0;border-radius:10px;padding:15px;background:var(--blue);color:#061126;font-weight:700;font-size:16px;cursor:pointer;margin-top:10px}
-    button.secondary{background:transparent;color:var(--ink);border:1px solid var(--line)}#message{min-height:24px;color:var(--dim)}
+    button:disabled{opacity:.5;cursor:not-allowed}
+    #message{min-height:24px;color:var(--dim)}
     .error{color:var(--red)!important}.done{color:var(--green)!important}
   </style>
 </head>
 <body><main>
   <div class="mark">◈</div><div class="eyebrow">SIT Vending Machine</div><h1 id="title">Ready for payment</h1>
   <div class="detail" id="detail"></div><div id="message"></div>
-  <button id="pay">Open UPI app</button><button class="secondary" id="confirm">I've Paid</button>
+  <button id="pay">Pay Now</button>
 </main>
 <script>
-  const params=new URLSearchParams(location.search), txn=params.get("txn"), upi=params.get("upi"), amount=params.get("amount");
-  const title=document.getElementById("title"), detail=document.getElementById("detail"), message=document.getElementById("message");
-  detail.textContent=txn?`Order ${txn} · ₹${amount||"0"}`:"No order selected";
-  document.getElementById("pay").onclick=()=>{if(upi) location.href=upi};
-  document.getElementById("confirm").onclick=async()=>{if(!txn)return;message.textContent="Confirming payment…";try{const r=await fetch("/api/confirm-payment",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({orderId:txn})});const d=await r.json();if(!r.ok)throw Error(d.error);message.textContent="Payment received. Your snack is being prepared.";message.className="done";poll()}catch(e){message.textContent=e.message;message.className="error"}};
-  async function poll(){const r=await fetch("/api/order-status/"+encodeURIComponent(txn));const d=await r.json();if(d.status==="dispensed"){title.textContent="Enjoy your snack";message.textContent="Dispensed successfully.";return}if(d.status==="paid"){title.textContent="Dispensing…";setTimeout(poll,3000)}}
+  const params = new URLSearchParams(location.search);
+  const txn = params.get("txn");
+  const amount = params.get("amount");
+  const rzpOrderId = params.get("rzpOrderId");
+  const rzpKeyId = params.get("rzpKeyId");
+
+  const title = document.getElementById("title");
+  const detail = document.getElementById("detail");
+  const message = document.getElementById("message");
+  const payBtn = document.getElementById("pay");
+
+  detail.textContent = txn ? `Order ${txn} · ₹${amount || "0"}` : "No order selected";
+
+  let polling = false;
+  async function poll() {
+    if (!txn) return;
+    polling = true;
+    try {
+      const r = await fetch("/api/order-status/" + encodeURIComponent(txn));
+      const d = await r.json();
+      if (d.status === "dispensed") {
+        title.textContent = "Enjoy your snack";
+        message.textContent = "Dispensed successfully.";
+        message.className = "done";
+        payBtn.style.display = "none";
+        return;
+      }
+      if (d.status === "paid") {
+        title.textContent = "Payment verified";
+        message.textContent = "Dispensing your snack…";
+        message.className = "done";
+        payBtn.style.display = "none";
+      } else {
+        message.textContent = "Waiting for payment confirmation…";
+        message.className = "";
+      }
+    } catch (e) {
+      message.textContent = "Checking payment status…";
+    }
+    setTimeout(poll, 3000);
+  }
+
+  payBtn.onclick = () => {
+    if (!rzpOrderId || !rzpKeyId) {
+      message.textContent = "Payment could not be started. Please go back and try again.";
+      message.className = "error";
+      return;
+    }
+    const rzp = new Razorpay({
+      key: rzpKeyId,
+      amount: Number(amount) * 100,
+      currency: "INR",
+      name: "SIT Vending Machine",
+      description: `Order ${txn}`,
+      order_id: rzpOrderId,
+      // The snack is released only after Razorpay's webhook marks the order
+      // paid on the server. This handler just starts watching the status.
+      handler: function () {
+        payBtn.disabled = true;
+        message.textContent = "Payment received. Confirming…";
+        message.className = "done";
+        if (!polling) poll();
+      },
+      modal: {
+        ondismiss: function () {
+          if (!polling) {
+            message.textContent = "Payment cancelled.";
+            message.className = "error";
+          }
+        },
+      },
+      theme: { color: "#3d9bff" },
+    });
+    rzp.on("payment.failed", function (resp) {
+      message.textContent = "Payment failed: " + ((resp.error && resp.error.description) || "please try again.");
+      message.className = "error";
+    });
+    rzp.open();
+  };
+
+  if (txn) poll();
 </script>
 </body></html>
